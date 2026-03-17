@@ -93,8 +93,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $curl_error = curl_error($ch);
     curl_close($ch);
 
-    // 8. Evaluar respuesta de la API
-    if ($http_code == 200) {
+    // 8. Evaluar respuesta de la API (EnvialoSimple devuelve HTTP 201 en éxito)
+    if ($http_code >= 200 && $http_code < 300) {
         http_response_code(200);
         echo json_encode(["status" => "success", "message" => "Correo enviado vía API."]);
     } else {
