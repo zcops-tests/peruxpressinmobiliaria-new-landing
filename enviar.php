@@ -2,25 +2,45 @@
 header('Content-Type: application/json');
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    // Sanitizar y recoger datos
-    $nombre = strip_tags(trim($_POST["nombre"] ?? ''));
-    $telefono = strip_tags(trim($_POST["telefono"] ?? ''));
-    $tipo_propiedad = strip_tags(trim($_POST["tipo_propiedad"] ?? 'No especificado'));
-    $distrito = strip_tags(trim($_POST["distrito"] ?? 'No especificado'));
-    $operacion = strip_tags(trim($_POST["operacion"] ?? 'No especificado'));
-    $precio = strip_tags(trim($_POST["precio"] ?? 'No especificado'));
+    // 1. Honeypot - Protección Anti-Bots
+    if (!empty($_POST["web_site_url"])) {
+        http_response_code(400);
+        echo json_encode(["status" => "error", "message" => "Petición bloqueada por reglas de seguridad."]);
+        exit;
+    }
 
-    // Validar requeridos
+    // 2. Sanitización estricta para mitigar XSS / Inyección HTML
+    $nombre = htmlspecialchars(strip_tags(trim($_POST["nombre"] ?? '')), ENT_QUOTES, 'UTF-8');
+    $telefono = htmlspecialchars(strip_tags(trim($_POST["telefono"] ?? '')), ENT_QUOTES, 'UTF-8');
+    $tipo_propiedad = htmlspecialchars(strip_tags(trim($_POST["tipo_propiedad"] ?? 'No especificado')), ENT_QUOTES, 'UTF-8');
+    $distrito = htmlspecialchars(strip_tags(trim($_POST["distrito"] ?? 'No especificado')), ENT_QUOTES, 'UTF-8');
+    $operacion = htmlspecialchars(strip_tags(trim($_POST["operacion"] ?? 'No especificado')), ENT_QUOTES, 'UTF-8');
+    $precio = htmlspecialchars(strip_tags(trim($_POST["precio"] ?? 'No especificado')), ENT_QUOTES, 'UTF-8');
+
+    // 3. Validación de requeridos y límites de longitud de desbordamiento (Buffer)
     if (empty($nombre) || empty($telefono)) {
         http_response_code(400);
         echo json_encode(["status" => "error", "message" => "Faltan datos requeridos (nombre o teléfono)."]);
         exit;
     }
 
+    if (mb_strlen($nombre, 'UTF-8') > 100 || mb_strlen($telefono, 'UTF-8') > 20) {
+        http_response_code(400);
+        echo json_encode(["status" => "error", "message" => "Los datos exceden la longitud permitida."]);
+        exit;
+    }
+
+    // 4. Validación Regex estructural del teléfono (Solo números, espacios y signos + -)
+    if (!preg_match('/^[0-9\+\-\s]{7,20}$/', $telefono)) {
+        http_response_code(400);
+        echo json_encode(["status" => "error", "message" => "El formato del teléfono es inválido."]);
+        exit;
+    }
+
     $destinatario = "sistemas@peruxpressinmobiliaria.com";
     $asunto = "Nuevo Lead Landing Page: $nombre";
 
-    $mensaje = "Has recibido un nuevo contacto desde la landing page.\n\n";
+    $mensaje = "Has recibido un nuevo contacto desde la página web.\n\n";
     $mensaje .= "Detalles del contacto:\n";
     $mensaje .= "-----------------------------------\n";
     $mensaje .= "Nombre: $nombre\n";
