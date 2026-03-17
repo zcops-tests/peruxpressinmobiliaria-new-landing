@@ -1,0 +1,10 @@
+# Archivos de configuración con credenciales (NO SUBIR A REPOSITORIOS PÚBLICOS)
+config.php
+
+# Dependencias (si aplica en el futuro)
+node_modules/
+vendor/
+
+# Archivos de sistema operativo
+.DS_Store
+Thumbs.db

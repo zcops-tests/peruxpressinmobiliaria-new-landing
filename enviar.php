@@ -1,5 +1,15 @@
 <?php
+// Configuración de Cabeceras CORS (Seguridad Frontend-Backend)
 header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
+
+// Si es una petición pre-flight de CORS, responder 200 inmediatamente
+if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // 1. Honeypot - Protección Anti-Bots
@@ -37,36 +47,65 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         exit;
     }
 
-    $destinatario = "sistemas@peruxpressinmobiliaria.com";
-    $asunto = "Nuevo Lead Landing Page: $nombre";
+    // 5. Configuración de API y Correos (Aprobados por el usuario)
+    require_once('config.php');
 
-    $mensaje = "Has recibido un nuevo contacto desde la página web.\n\n";
-    $mensaje .= "Detalles del contacto:\n";
-    $mensaje .= "-----------------------------------\n";
-    $mensaje .= "Nombre: $nombre\n";
-    $mensaje .= "Teléfono: $telefono\n";
-    $mensaje .= "Tipo de Propiedad: $tipo_propiedad\n";
-    $mensaje .= "Distrito: $distrito\n";
-    $mensaje .= "Operación: $operacion\n";
-    $mensaje .= "Precio Estimado: $precio\n";
-    $mensaje .= "-----------------------------------\n";
+    $destinatario = EMAIL_DESTINATARIO;
+    $remitente = EMAIL_REMITENTE;
+    $asunto = "Nuevo Lead: $nombre";
 
-    // Headers. Importante: "From" debe idealmente ser una cuenta de tu mismo dominio en DonWeb
-    $headers = "From: no-reply@peruxpressinmobiliaria.pe\r\n";
-    $headers .= "Reply-To: no-reply@peruxpressinmobiliaria.pe\r\n";
-    $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+    $html_mensaje = "
+    <h2>Has recibido un nuevo Lead.</h2>
+    <p><strong>Detalles del Lead:</strong></p>
+    <hr>
+    <ul>
+        <li><strong>Nombre:</strong> $nombre</li>
+        <li><strong>Teléfono:</strong> $telefono</li>
+        <li><strong>Tipo de Propiedad:</strong> $tipo_propiedad</li>
+        <li><strong>Distrito:</strong> $distrito</li>
+        <li><strong>Operación:</strong> $operacion</li>
+        <li><strong>Precio Estimado:</strong> $precio</li>
+    </ul>
+    <hr>
+    ";
 
-    // Envío del correo usando la función mail nativa
-    if (mail($destinatario, $asunto, $mensaje, $headers)) {
+    // 6. Construir el Payload JSON para EnvialoSimple
+    $payload = json_encode([
+        "to" => [
+            ["email" => $destinatario, "name" => "Sistemas PeruXpress"]
+        ],
+        "from" => [
+            "email" => $remitente,
+            "name" => "PeruXpress Web"
+        ],
+        "subject" => $asunto,
+        "html" => $html_mensaje
+    ]);
+
+    // 7. Ejecutar petición cURL hacia la API
+    $ch = curl_init('https://api.envialosimple.email/api/v1/mail/send');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Content-Type: application/json',
+        'Authorization: Bearer ' . DONWEB_API_KEY
+    ]);
+
+    $response = curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    // 8. Evaluar respuesta de la API (EnvialoSimple devuelve HTTP 200 en éxito)
+    if ($http_code == 200) {
         http_response_code(200);
-        echo json_encode(["status" => "success", "message" => "Correo enviado correctamente."]);
-    }
-    else {
+        echo json_encode(["status" => "success", "message" => "Correo enviado vía API."]);
+    } else {
         http_response_code(500);
-        echo json_encode(["status" => "error", "message" => "Hubo un error al enviar el correo desde el servidor."]);
+        // Error de debug interno (no se expone a cliente al 100% pero dice error de servidor)
+        echo json_encode(["status" => "error", "message" => "Error del proveedor de correo (HTTP $http_code). Comprueba la API KEY."]);
     }
-}
-else {
+} else {
     http_response_code(405); // Method Not Allowed
     echo json_encode(["status" => "error", "message" => "Método HTTP no permitido."]);
 }
