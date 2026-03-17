@@ -270,6 +270,7 @@
                     placeholder="Tu nombre"
                     type="text"
                   />
+                  <span id="nombre-error" class="text-red-500 text-xs mt-1 hidden" role="alert"></span>
                 </div>
                 <div>
                   <label for="telefono" class="sr-only"
@@ -280,10 +281,13 @@
                     id="telefono"
                     name="telefono"
                     autocomplete="tel"
+                    pattern="[0-9\+\-\s]{7,20}"
+                    title="Ingresa un número de teléfono válido (7 a 20 caracteres numéricos)"
                     class="w-full rounded-lg border-slate-200 focus:border-accent focus:ring-accent text-sm py-3"
                     placeholder="Tu teléfono"
                     type="tel"
                   />
+                  <span id="telefono-error" class="text-red-500 text-xs mt-1 hidden" role="alert"></span>
                 </div>
               </div>
               <div class="grid grid-cols-2 gap-4">

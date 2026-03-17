@@ -12,6 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 }
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
+  try {
     // 1. Honeypot - Protección Anti-Bots
     if (!empty($_POST["web_site_url"])) {
         http_response_code(400);
@@ -47,8 +48,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         exit;
     }
 
-    // 5. Configuración de API y Correos (Aprobados por el usuario)
-    require_once('config.php');
+    // 5. Configuración de API y Correos
+    require_once(__DIR__ . '/config.php');
 
     $destinatario = EMAIL_DESTINATARIO;
     $remitente = EMAIL_REMITENTE;
@@ -71,13 +72,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     // 6. Construir el Payload JSON para EnvialoSimple
     $payload = json_encode([
-        "to" => [
-            ["email" => $destinatario, "name" => "Sistemas PeruXpress"]
-        ],
-        "from" => [
-            "email" => $remitente,
-            "name" => "PeruXpress Web"
-        ],
+        "to" => "Sistemas PeruXpress <$destinatario>",
+        "from" => "PeruXpress Web <$remitente>",
         "subject" => $asunto,
         "html" => $html_mensaje
     ]);
@@ -94,17 +90,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     $response = curl_exec($ch);
     $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curl_error = curl_error($ch);
     curl_close($ch);
 
-    // 8. Evaluar respuesta de la API (EnvialoSimple devuelve HTTP 200 en éxito)
+    // 8. Evaluar respuesta de la API
     if ($http_code == 200) {
         http_response_code(200);
         echo json_encode(["status" => "success", "message" => "Correo enviado vía API."]);
     } else {
         http_response_code(500);
-        // Error de debug interno (no se expone a cliente al 100% pero dice error de servidor)
-        echo json_encode(["status" => "error", "message" => "Error del proveedor de correo (HTTP $http_code). Comprueba la API KEY."]);
+        echo json_encode([
+            "status" => "error",
+            "message" => "Error del proveedor (HTTP $http_code).",
+            "debug" => $curl_error ? $curl_error : $response
+        ]);
     }
+  } catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode(["status" => "error", "message" => "Error interno: " . $e->getMessage()]);
+  }
 } else {
     http_response_code(405); // Method Not Allowed
     echo json_encode(["status" => "error", "message" => "Método HTTP no permitido."]);

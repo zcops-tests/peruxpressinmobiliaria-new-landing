@@ -1,4 +1,37 @@
 document.addEventListener("DOMContentLoaded", () => {
+  // Utilidades de validación inline
+  const nombreInput = document.getElementById("nombre");
+  const telefonoInput = document.getElementById("telefono");
+  const nombreError = document.getElementById("nombre-error");
+  const telefonoError = document.getElementById("telefono-error");
+
+  function showInputError(input, errorSpan, message) {
+    errorSpan.innerText = message;
+    errorSpan.classList.remove("hidden");
+    input.classList.add("border-red-500", "ring-red-500");
+    input.classList.remove("border-slate-200");
+  }
+
+  function clearInputError(input, errorSpan) {
+    errorSpan.innerText = "";
+    errorSpan.classList.add("hidden");
+    input.classList.remove("border-red-500", "ring-red-500");
+    input.classList.add("border-slate-200");
+  }
+
+  function clearAllErrors() {
+    if (nombreInput && nombreError) clearInputError(nombreInput, nombreError);
+    if (telefonoInput && telefonoError) clearInputError(telefonoInput, telefonoError);
+  }
+
+  // Limpiar errores al escribir
+  if (nombreInput) {
+    nombreInput.addEventListener("input", () => clearInputError(nombreInput, nombreError));
+  }
+  if (telefonoInput) {
+    telefonoInput.addEventListener("input", () => clearInputError(telefonoInput, telefonoError));
+  }
+
   // Form submit feedback and AJAX implementation (PHP Backend)
   const form = document.getElementById("lead-form");
   if (form) {
@@ -7,27 +40,31 @@ document.addEventListener("DOMContentLoaded", () => {
       const submitBtn = form.querySelector('button[type="submit"]');
       const originalText = submitBtn.innerText;
 
+      clearAllErrors();
+
       // 1. Validaciones Frontend de Seguridad
       const formData = new FormData(form);
       const nombre = formData.get("nombre");
       const telefono = formData.get("telefono");
-      
+
       // Verificación de Honeypot (trampa para bots)
       if (formData.get("web_site_url")) {
         console.warn("Petición bloqueada preventivamente.");
-        return; // Bot detectado, abortar silenciosamente
-      }
-
-      // Validación de longitud y vacíos
-      if (!nombre || nombre.trim().length < 2 || nombre.trim().length > 30) {
-        alert("Por favor ingresa un nombre válido (entre 2 y 30 caracteres).");
         return;
       }
 
-      // Validación estricta del número telefónico usando Regex
+      // Validación de nombre
+      if (!nombre || nombre.trim().length < 2 || nombre.trim().length > 100) {
+        showInputError(nombreInput, nombreError, "Ingresa un nombre válido (entre 2 y 100 caracteres).");
+        nombreInput.focus();
+        return;
+      }
+
+      // Validación del teléfono
       const phoneRegex = /^[0-9\+\-\s]{7,20}$/;
       if (!telefono || !phoneRegex.test(telefono.trim())) {
-        alert("Por favor ingresa un teléfono válido (entre 7 y 20 números).");
+        showInputError(telefonoInput, telefonoError, "Ingresa un teléfono válido (7 a 20 dígitos).");
+        telefonoInput.focus();
         return;
       }
 
@@ -38,10 +75,9 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         const response = await fetch("enviar.php", {
           method: "POST",
-          body: formData
+          body: formData,
         });
 
-        // Intentar parsear el JSON de respuesta
         const data = await response.json();
 
         if (response.ok && data.status === "success") {
